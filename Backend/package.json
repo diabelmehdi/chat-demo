@@ -1,0 +1,18 @@
+{
+    "name": "socket.io-chat",
+    "version": "0.0.0",
+    "description": "A simple chat client using socket.io",
+    "main": "index.js",
+    "author": "Kirill Fuks",
+    "private": true,
+    "license": "BSD",
+    "dependencies": {
+        "@socket.io/redis-adapter": "^8.3.0",
+        "express": "~4.17.1",
+        "redis": "^5.10.0",
+        "socket.io": "^4.6.0"
+    },
+    "scripts": {
+        "start": "node index.js"
+    }
+}
