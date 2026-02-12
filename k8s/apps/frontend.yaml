@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/YOUR_GITHUB_USERNAME/chat-demo-frontend:latest
+          image: ghcr.io/diabelmehdi/chat-demo-frontend:latest
           ports:
             - containerPort: 80
           resources:
