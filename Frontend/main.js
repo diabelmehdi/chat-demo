@@ -19,7 +19,7 @@ $(function () {
     const socket = io('/', { 'path': '/rta/socket.io', 'transports': ['websocket'] });
 
     // Prompt for setting a username
-    let username;
+    let diabelmehdi;
     let connected = false;
     let typing = false;
     let lastTypingTime;
@@ -37,17 +37,17 @@ $(function () {
 
     // Sets the client's username
     const setUsername = () => {
-        username = cleanInput($usernameInput.val().trim());
+        diabelmehdi = cleanInput($usernameInput.val().trim());
 
         // If the username is valid
-        if (username) {
+        if (diabelmehdi) {
             $loginPage.fadeOut();
             $chatPage.show();
             $loginPage.off('click');
             $currentInput = $inputMessage.focus();
 
             // Tell the server your username
-            socket.emit('add user', username);
+            socket.emit('add user', diabelmehdi);
         }
     }
 
