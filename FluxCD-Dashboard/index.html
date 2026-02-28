@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FluxCD Dashboard</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a2332;
+      --bg-card-hover: #1f2b3d;
+      --bg-input: #0d1321;
+      --border: #1e3048;
+      --border-active: #2563eb;
+      --text-primary: #e2e8f0;
+      --text-secondary: #8896ab;
+      --text-muted: #4a5568;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --accent-purple: #8b5cf6;
+      --accent-orange: #f97316;
+      --glow-blue: rgba(59, 130, 246, 0.15);
+      --glow-green: rgba(16, 185, 129, 0.15);
+      --glow-red: rgba(239, 68, 68, 0.15);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-xs: 6px;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Outfit', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: var(--font-sans); background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.04) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(139,92,246,0.03) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(6,182,212,0.02) 0%, transparent 60%); z-index: -1; animation: ambientShift 30s ease-in-out infinite; }
+    @keyframes ambientShift { 0%,100%{transform:translate(0,0) rotate(0deg)} 33%{transform:translate(-2%,1%) rotate(1deg)} 66%{transform:translate(1%,-1%) rotate(-0.5deg)} }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    @keyframes toastIn { from{opacity:0;transform:translateX(100%)} to{opacity:1;transform:translateX(0)} }
+    @keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(100%)} }
+    ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:var(--bg-primary)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px} ::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+    .header { position:sticky; top:0; z-index:100; background:rgba(10,14,23,0.85); backdrop-filter:blur(20px) saturate(180%); border-bottom:1px solid var(--border); padding:0 32px; height:64px; display:flex; align-items:center; justify-content:space-between; }
+    .header-left { display:flex; align-items:center; gap:14px; }
+    .logo { width:36px; height:36px; background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan)); border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:14px; color:white; box-shadow:0 0 20px rgba(59,130,246,0.3); }
+    .header-title { font-weight:600; font-size:18px; letter-spacing:-0.02em; }
+    .header-title span { color:var(--accent-cyan); }
+    .header-right { display:flex; align-items:center; gap:12px; }
+    .connection-status { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-secondary); font-family:var(--font-mono); }
+    .status-dot { width:8px; height:8px; border-radius:50%; background:var(--accent-green); box-shadow:0 0 8px var(--accent-green); }
+    .status-dot.error { background:var(--accent-red); box-shadow:0 0 8px var(--accent-red); }
+    .status-dot.loading { background:var(--accent-yellow); animation:pulse 1.5s infinite; }
+    .last-updated { font-size:11px; color:var(--text-muted); font-family:var(--font-mono); }
+    .refresh-group { display:flex; align-items:center; gap:8px; }
+    .refresh-btn { background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary); padding:8px 16px; border-radius:var(--radius-sm); cursor:pointer; font-family:var(--font-mono); font-size:12px; display:flex; align-items:center; gap:6px; transition:all 0.2s; }
+    .refresh-btn:hover { background:var(--bg-card-hover); color:var(--text-primary); border-color:var(--accent-blue); }
+    .refresh-btn.spinning svg { animation:spin 1s linear infinite; }
+    .countdown-ring { width:28px; height:28px; position:relative; cursor:pointer; }
+    .countdown-ring svg { transform:rotate(-90deg); }
+    .countdown-ring circle { fill:none; stroke-width:2.5; }
+    .countdown-ring .track { stroke:var(--border); }
+    .countdown-ring .progress { stroke:var(--accent-cyan); stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
+    .countdown-ring .text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:8px; font-family:var(--font-mono); color:var(--text-muted); }
+    .countdown-ring.paused .progress { stroke:var(--text-muted); }
+
+    .toolbar { display:flex; align-items:center; gap:8px; padding:12px 32px; border-bottom:1px solid var(--border); background:rgba(10,14,23,0.6); backdrop-filter:blur(12px); flex-wrap:wrap; }
+    .nav-group { display:flex; gap:4px; }
+    .nav-btn { padding:8px 18px; border:1px solid transparent; border-radius:var(--radius-xs); background:transparent; color:var(--text-secondary); font-family:var(--font-sans); font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:8px; }
+    .nav-btn:hover { color:var(--text-primary); background:var(--bg-card); }
+    .nav-btn.active { color:var(--accent-cyan); background:rgba(6,182,212,0.08); border-color:rgba(6,182,212,0.2); }
+    .nav-count { background:var(--bg-input); padding:2px 7px; border-radius:10px; font-size:11px; font-family:var(--font-mono); color:var(--text-muted); }
+    .nav-btn.active .nav-count { color:var(--accent-cyan); background:rgba(6,182,212,0.12); }
+    .toolbar-sep { width:1px; height:24px; background:var(--border); margin:0 8px; }
+    .search-box { background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); padding:7px 12px 7px 32px; color:var(--text-primary); font-family:var(--font-mono); font-size:12px; outline:none; width:200px; transition:border-color 0.2s; position:relative; }
+    .search-box:focus { border-color:var(--accent-cyan); }
+    .search-box::placeholder { color:var(--text-muted); }
+    .search-wrapper { position:relative; }
+    .search-wrapper svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; }
+    .ns-select { background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); padding:7px 12px; color:var(--text-primary); font-family:var(--font-mono); font-size:12px; outline:none; cursor:pointer; }
+    .ns-select:focus { border-color:var(--accent-cyan); }
+    .ns-select option { background:var(--bg-card); }
+
+    .main { padding:24px 32px 48px; }
+    .stats-bar { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:24px; }
+    .stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; display:flex; flex-direction:column; gap:4px; animation:fadeInUp 0.4s ease both; transition:all 0.25s; }
+    .stat-card:hover { border-color:var(--border-active); background:var(--bg-card-hover); transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,0,0,0.3); }
+    .stat-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:500; }
+    .stat-value { font-family:var(--font-mono); font-size:28px; font-weight:700; line-height:1; }
+    .stat-value.green{color:var(--accent-green)} .stat-value.red{color:var(--accent-red)} .stat-value.blue{color:var(--accent-blue)} .stat-value.cyan{color:var(--accent-cyan)} .stat-value.purple{color:var(--accent-purple)} .stat-value.yellow{color:var(--accent-yellow)}
+
+    .section { margin-bottom:28px; animation:fadeInUp 0.5s ease both; }
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .section-title { font-size:15px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.08em; display:flex; align-items:center; gap:10px; }
+    .section-title::before { content:''; width:3px; height:18px; background:linear-gradient(180deg,var(--accent-cyan),var(--accent-blue)); border-radius:2px; }
+
+    .card-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(380px,1fr)); gap:12px; }
+    .card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:18px; transition:all 0.25s; animation:fadeInUp 0.4s ease both; cursor:pointer; }
+    .card:hover { border-color:rgba(59,130,246,0.3); background:var(--bg-card-hover); box-shadow:0 4px 24px rgba(0,0,0,0.2); }
+    .card.expanded { border-color:var(--accent-cyan); }
+    .card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; }
+    .card-name { font-family:var(--font-mono); font-size:14px; font-weight:600; color:var(--text-primary); word-break:break-all; }
+    .card-namespace { font-size:11px; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px; }
+    .badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600; font-family:var(--font-mono); white-space:nowrap; }
+    .badge.ready { background:rgba(16,185,129,0.12); color:var(--accent-green); border:1px solid rgba(16,185,129,0.2); }
+    .badge.not-ready { background:rgba(239,68,68,0.12); color:var(--accent-red); border:1px solid rgba(239,68,68,0.2); }
+    .badge.running { background:rgba(16,185,129,0.12); color:var(--accent-green); border:1px solid rgba(16,185,129,0.2); }
+    .badge.pending { background:rgba(245,158,11,0.12); color:var(--accent-yellow); border:1px solid rgba(245,158,11,0.2); }
+    .badge.failed { background:rgba(239,68,68,0.12); color:var(--accent-red); border:1px solid rgba(239,68,68,0.2); }
+    .badge.info { background:rgba(59,130,246,0.12); color:var(--accent-blue); border:1px solid rgba(59,130,246,0.2); }
+    .badge.purple { background:rgba(139,92,246,0.12); color:var(--accent-purple); border:1px solid rgba(139,92,246,0.2); }
+    .badge.warning { background:rgba(245,158,11,0.12); color:var(--accent-yellow); border:1px solid rgba(245,158,11,0.2); }
+    .badge.normal { background:rgba(59,130,246,0.08); color:var(--text-muted); border:1px solid var(--border); }
+    .badge-dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+    .meta-row { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); margin-top:6px; font-family:var(--font-mono); }
+    .meta-label { color:var(--text-muted); min-width:70px; }
+    .meta-value { color:var(--text-secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .message-tooltip { font-size:11px; color:var(--text-muted); margin-top:8px; padding:8px 12px; background:var(--bg-input); border-radius:var(--radius-xs); border:1px solid var(--border); font-family:var(--font-mono); line-height:1.5; word-break:break-all; }
+    .message-tooltip.expandable { max-height:60px; overflow:hidden; cursor:pointer; transition:max-height 0.3s; }
+    .message-tooltip.expanded { max-height:none; }
+    .card-details { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); animation:fadeInUp 0.2s ease; }
+    .card-details .meta-row { margin-top:4px; }
+
+    .table-wrapper { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; padding:12px 16px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); background:var(--bg-input); border-bottom:1px solid var(--border); font-family:var(--font-mono); white-space:nowrap; }
+    td { padding:10px 16px; border-bottom:1px solid rgba(30,48,72,0.5); font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); white-space:nowrap; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:rgba(59,130,246,0.03); }
+    .highlight { background:rgba(245,158,11,0.15); border-radius:2px; padding:0 2px; }
+
+    .node-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:22px; animation:fadeInUp 0.4s ease both; }
+    .node-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .node-name { font-family:var(--font-mono); font-size:16px; font-weight:700; }
+    .resource-bars { display:flex; flex-direction:column; gap:12px; }
+    .resource-item label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:flex; justify-content:space-between; margin-bottom:6px; }
+    .bar-track { height:8px; background:var(--bg-input); border-radius:4px; overflow:hidden; }
+    .bar-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--accent-cyan),var(--accent-blue)); transition:width 0.6s ease; }
+    .bar-fill.bar-warn { background:linear-gradient(90deg,var(--accent-yellow),#f97316); }
+    .bar-fill.bar-danger { background:linear-gradient(90deg,#ef4444,#dc2626); }
+    .overload { color:var(--accent-red) !important; font-weight:600; }
+    .node-meta { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+    .node-meta-item { font-size:11px; }
+    .node-meta-item .meta-label { display:block; margin-bottom:2px; }
+
+    /* Events table */
+    .event-type-warning { color:var(--accent-yellow); }
+    .event-type-normal { color:var(--text-muted); }
+    .event-message { white-space:normal; max-width:400px; line-height:1.4; }
+
+    .loading-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; gap:20px; }
+    .loading-spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--accent-cyan); border-radius:50%; animation:spin 0.8s linear infinite; }
+    .loading-text { color:var(--text-muted); font-size:14px; }
+    .error-banner { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:var(--radius); padding:16px 20px; margin-bottom:20px; color:var(--accent-red); font-family:var(--font-mono); font-size:13px; display:flex; align-items:center; gap:10px; }
+    .empty-state { text-align:center; padding:48px 20px; color:var(--text-muted); font-size:14px; }
+
+    /* Toast */
+    .toast-container { position:fixed; top:80px; right:24px; z-index:200; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+    .toast { pointer-events:auto; padding:12px 16px; border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:12px; display:flex; align-items:center; gap:8px; animation:toastIn 0.3s ease; min-width:280px; max-width:400px; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
+    .toast.leaving { animation:toastOut 0.3s ease forwards; }
+    .toast.info { background:var(--bg-card); border:1px solid var(--accent-blue); color:var(--accent-blue); }
+    .toast.success { background:var(--bg-card); border:1px solid var(--accent-green); color:var(--accent-green); }
+    .toast.warning { background:var(--bg-card); border:1px solid var(--accent-yellow); color:var(--accent-yellow); }
+    .toast.error { background:var(--bg-card); border:1px solid var(--accent-red); color:var(--accent-red); }
+
+    /* Topology Graph */
+    .topo-container { position:relative; width:100%; overflow:auto; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); min-height:600px; }
+    .topo-canvas { position:relative; min-width:100%; min-height:600px; padding:40px; }
+    .topo-node { position:absolute; background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; min-width:180px; cursor:pointer; transition:all 0.2s; z-index:2; display:flex; align-items:center; gap:10px; }
+    .topo-node:hover { border-color:var(--accent-cyan); box-shadow:0 4px 20px rgba(0,0,0,0.3); transform:translateY(-1px); z-index:3; }
+    .topo-node.health-healthy { border-left:3px solid var(--accent-green); }
+    .topo-node.health-degraded { border-left:3px solid var(--accent-red); }
+    .topo-node.health-progressing { border-left:3px solid var(--accent-yellow); }
+    .topo-node.health-unknown { border-left:3px solid var(--text-muted); }
+    .topo-node-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:10px; font-weight:700; color:white; flex-shrink:0; }
+    .topo-node-icon.deploy { background:linear-gradient(135deg,#3b82f6,#2563eb); }
+    .topo-node-icon.rs { background:linear-gradient(135deg,#6b7280,#4b5563); }
+    .topo-node-icon.pod { background:linear-gradient(135deg,#06b6d4,#0891b2); }
+    .topo-node-icon.svc { background:linear-gradient(135deg,#8b5cf6,#7c3aed); }
+    .topo-node-icon.ing { background:linear-gradient(135deg,#f97316,#ea580c); }
+    .topo-node-icon.cm { background:linear-gradient(135deg,#64748b,#475569); }
+    .topo-node-icon.secret { background:linear-gradient(135deg,#f59e0b,#d97706); }
+    .topo-node-icon.ks { background:linear-gradient(135deg,#3b82f6,#06b6d4); }
+    .topo-node-icon.hr { background:linear-gradient(135deg,#8b5cf6,#3b82f6); }
+    .topo-node-icon.sts { background:linear-gradient(135deg,#10b981,#059669); }
+    .topo-node-icon.pvc { background:linear-gradient(135deg,#64748b,#475569); }
+    .topo-node-icon.cert { background:linear-gradient(135deg,#10b981,#06b6d4); }
+    .topo-node-body { flex:1; min-width:0; }
+    .topo-node-name { font-family:var(--font-mono); font-size:12px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
+    .topo-node-kind { font-size:10px; color:var(--text-muted); text-transform:lowercase; }
+    .topo-node-info { font-size:10px; color:var(--text-secondary); font-family:var(--font-mono); margin-top:2px; }
+    .topo-node-badges { display:flex; gap:4px; margin-top:4px; }
+    .topo-badge { font-size:9px; padding:1px 6px; border-radius:8px; font-family:var(--font-mono); }
+    .topo-badge.healthy { background:rgba(16,185,129,0.15); color:var(--accent-green); }
+    .topo-badge.degraded { background:rgba(239,68,68,0.15); color:var(--accent-red); }
+    .topo-badge.progressing { background:rgba(245,158,11,0.15); color:var(--accent-yellow); }
+    .topo-edge { position:absolute; z-index:1; pointer-events:none; }
+    .topo-controls { display:flex; gap:8px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); background:var(--bg-card); border-radius:var(--radius) var(--radius) 0 0; }
+    .topo-controls button { background:var(--bg-input); border:1px solid var(--border); color:var(--text-secondary); padding:6px 12px; border-radius:var(--radius-xs); cursor:pointer; font-family:var(--font-mono); font-size:11px; transition:all 0.2s; }
+    .topo-controls button:hover { border-color:var(--accent-cyan); color:var(--text-primary); }
+    .topo-controls .zoom-label { font-size:11px; color:var(--text-muted); font-family:var(--font-mono); }
+    .topo-ns-group { margin-bottom:24px; }
+    .topo-ns-label { font-family:var(--font-mono); font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; padding-left:4px; }
+    .topo-loading { display:flex; align-items:center; justify-content:center; min-height:400px; color:var(--text-muted); font-size:14px; gap:12px; }
+    .topo-loading .loading-spinner { width:24px; height:24px; }
+
+    /* Create Resource Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+    .modal { background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); width:560px; max-width:92vw; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 16px; border-bottom:1px solid var(--border); }
+    .modal-header h3 { font-size:16px; font-weight:600; color:var(--text-primary); margin:0; }
+    .modal-close { background:none; border:none; color:var(--text-muted); font-size:20px; cursor:pointer; padding:4px 8px; border-radius:4px; }
+    .modal-close:hover { color:var(--text-primary); background:var(--bg-input); }
+    .modal-body { padding:20px 24px; }
+    .modal-footer { padding:16px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
+    .kind-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .kind-btn { display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:all 0.2s; color:var(--text-secondary); }
+    .kind-btn:hover { border-color:var(--accent-cyan); color:var(--text-primary); transform:translateY(-1px); }
+    .kind-btn .kind-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:white; font-family:var(--font-mono); }
+    .kind-btn .kind-label { font-size:12px; font-family:var(--font-mono); }
+    .form-group { margin-bottom:14px; }
+    .form-group label { display:block; font-size:11px; color:var(--text-muted); font-family:var(--font-mono); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:5px; }
+    .form-input { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); padding:9px 12px; color:var(--text-primary); font-family:var(--font-mono); font-size:13px; box-sizing:border-box; }
+    .form-input:focus { outline:none; border-color:var(--accent-cyan); }
+    .form-select { width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); padding:9px 12px; color:var(--text-primary); font-family:var(--font-mono); font-size:13px; cursor:pointer; box-sizing:border-box; }
+    .form-select:focus { outline:none; border-color:var(--accent-cyan); }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .kv-row { display:flex; gap:8px; margin-bottom:6px; align-items:center; }
+    .kv-row .form-input { flex:1; }
+    .kv-remove { background:none; border:1px solid var(--border); color:var(--accent-red); cursor:pointer; border-radius:4px; padding:6px 10px; font-size:14px; }
+    .kv-remove:hover { background:rgba(239,68,68,0.1); }
+    .kv-add { background:var(--bg-input); border:1px solid var(--border); color:var(--accent-cyan); cursor:pointer; border-radius:var(--radius-xs); padding:7px 14px; font-size:12px; font-family:var(--font-mono); }
+    .kv-add:hover { border-color:var(--accent-cyan); }
+    .btn-primary { background:var(--accent-cyan); border:none; color:#000; padding:9px 20px; border-radius:var(--radius-xs); cursor:pointer; font-family:var(--font-mono); font-size:12px; font-weight:600; }
+    .btn-primary:hover { opacity:0.9; }
+    .btn-primary:disabled { opacity:0.4; cursor:not-allowed; }
+    .btn-secondary { background:var(--bg-input); border:1px solid var(--border); color:var(--text-secondary); padding:9px 20px; border-radius:var(--radius-xs); cursor:pointer; font-family:var(--font-mono); font-size:12px; }
+    .btn-secondary:hover { border-color:var(--text-muted); color:var(--text-primary); }
+    .create-btn { display:flex; align-items:center; gap:6px; background:var(--accent-cyan); border:none; color:#000; padding:7px 16px; border-radius:var(--radius-xs); cursor:pointer; font-family:var(--font-mono); font-size:12px; font-weight:600; }
+    .create-btn:hover { opacity:0.9; }
+    .form-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; }
+    .form-toggle input[type=checkbox] { accent-color:var(--accent-cyan); width:16px; height:16px; }
+    .form-toggle span { font-size:12px; color:var(--text-secondary); font-family:var(--font-mono); }
+    .back-link { color:var(--accent-cyan); cursor:pointer; font-size:12px; font-family:var(--font-mono); background:none; border:none; padding:0; margin-bottom:12px; display:inline-flex; align-items:center; gap:4px; }
+    .back-link:hover { text-decoration:underline; }
+
+    @media (max-width:768px) { .header,.toolbar,.main{padding-left:16px;padding-right:16px} .card-grid{grid-template-columns:1fr} .stats-bar{grid-template-columns:repeat(2,1fr)} .search-box{width:140px} .kind-grid{grid-template-columns:repeat(2,1fr)} .modal{width:95vw} }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Toast notifications -->
+  <div class="toast-container">
+    <div v-for="t in toasts" :key="t.id" :class="['toast', t.type, t.leaving ? 'leaving' : '']">
+      <span class="badge-dot"></span> {{ t.message }}
+    </div>
+  </div>
+
+  <!-- Create Resource Modal -->
+  <div class="modal-overlay" v-if="showCreateModal" @click.self="showCreateModal=false">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>{{ createKind ? 'Create '+createKind : 'Create Resource' }}</h3>
+        <button class="modal-close" @click="showCreateModal=false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Kind Picker -->
+        <template v-if="!createKind">
+          <div class="kind-grid">
+            <button class="kind-btn" @click="selectKind('Namespace')"><div class="kind-icon" style="background:linear-gradient(135deg,#64748b,#475569)">NS</div><span class="kind-label">Namespace</span></button>
+            <button class="kind-btn" @click="selectKind('Deployment')"><div class="kind-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">DEP</div><span class="kind-label">Deployment</span></button>
+            <button class="kind-btn" @click="selectKind('StatefulSet')"><div class="kind-icon" style="background:linear-gradient(135deg,#10b981,#059669)">STS</div><span class="kind-label">StatefulSet</span></button>
+            <button class="kind-btn" @click="selectKind('Service')"><div class="kind-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">SVC</div><span class="kind-label">Service</span></button>
+            <button class="kind-btn" @click="selectKind('Ingress')"><div class="kind-icon" style="background:linear-gradient(135deg,#f97316,#ea580c)">ING</div><span class="kind-label">Ingress</span></button>
+            <button class="kind-btn" @click="selectKind('ConfigMap')"><div class="kind-icon" style="background:linear-gradient(135deg,#64748b,#475569)">CM</div><span class="kind-label">ConfigMap</span></button>
+            <button class="kind-btn" @click="selectKind('Secret')"><div class="kind-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">SEC</div><span class="kind-label">Secret</span></button>
+          </div>
+        </template>
+
+        <!-- Forms -->
+        <template v-else>
+          <button class="back-link" @click="createKind=null">&larr; Back to resource types</button>
+
+          <!-- Namespace Form -->
+          <template v-if="createKind==='Namespace'">
+            <div class="form-group"><label>Name</label><input class="form-input" v-model="createForm.name" placeholder="my-namespace" /></div>
+          </template>
+
+          <!-- Deployment Form -->
+          <template v-if="createKind==='Deployment'">
+            <div class="form-row">
+              <div class="form-group"><label>Name</label><input class="form-input" v-model="createForm.name" placeholder="my-app" /></div>
+              <div class="form-group"><label>Namespace</label>
+                <select class="form-select" v-model="createForm.namespace"><option value="">default</option><option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option></select>
+              </div>
+            </div>
+            <div class="form-group"><label>Image</label><input class="form-input" v-model="createForm.image" placeholder="nginx:latest" /></div>
+            <div class="form-row">
+              <div class="form-group"><label>Replicas</label><input class="form-input" type="number" min="1" v-model.number="createForm.replicas" /></div>
+              <div class="form-group"><label>Container Port</label><input class="form-input" type="number" v-model.number="createForm.containerPort" placeholder="80" /></div>
+            </div>
+          </template>
+
+          <!-- StatefulSet Form -->
+          <template v-if="createKind==='StatefulSet'">
+            <div class="form-row">
+              <div class="form-group"><label>Name</label><input class="form-input" v-model="createForm.name" placeholder="my-statefulset" /></div>
+              <div class="form-group"><label>Namespace</label>
+                <select class="form-select" v-model="createForm.namespace"><option value="">default</option><option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option></select>
+              </div>
+            </div>
+            <div class="form-group"><label>Image</label><input class="form-input" v-model="createForm.image" placeholder="postgres:16" /></div>
+            <div class="form-row">
+              <div class="form-group"><label>Replicas</label><input class="form-input" type="number" min="1" v-model.number="createForm.replicas" /></div>
+              <div class="form-group"><label>Container Port</label><input class="form-input" type="number" v-model.number="createForm.containerPort" placeholder="5432" /></div>
+            </div>
+            <div class="form-group"><label>Service Name</label><input class="form-input" v-model="createForm.serviceName" placeholder="my-statefulset-headless" /></div>
+          </template>
+
+          <!-- Service Form -->
+          <template v-if="createKind==='Service'">
+            <div class="form-row">
+              <div class="form-group"><label>Name</label><input class="form-input" v-model="createForm.name" placeholder="my-service" /></div>
+              <div class="form-group"><label>Namespace</label>
+                <select class="form-select" v-model="createForm.namespace"><option value="">default</option><option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option></select>
+              </div>
+            </div>
+            <div class="form-group"><label>Type</label>
+              <select class="form-select" v-model="createForm.serviceType"><option>ClusterIP</option><option>NodePort</option><option>LoadBalancer</option></select>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Port</label><input class="form-input" type="number" v-model.number="createForm.port" placeholder="80" /></div>
+              <div class="form-group"><label>Target Port</label><input class="form-input" type="number" v-model.number="createForm.targetPort" placeholder="8080" /></div>
+            </div>
+            <div class="form-group"><label>Selector (app label)</label><input class="form-input" v-model="createForm.selector" placeholder="my-app" /></div>
+          </template>
+
+          <!-- Ingress Form -->
+          <template v-if="createKind==='Ingress'">
+            <div class="form-row">
+              <div class="form-group"><label>Name</label><input class="form-input" v-model="createForm.name" placeholder="my-ingress" /></div>
+              <div class="form-group"><label>Namespace</label>
+                <select class="form-select" v-model="createForm.namespace"><option value="">default</option><option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option></select>
+              </div>
+            </div>
+            <div class="form-group"><label>Host</label><input class="form-input" v-model="createForm.host" placeholder="app.example.com" /></div>
+            <div class="form-group"><label>Path</label><input class="form-input" v-model="createForm.path" placeholder="/" /></div>
+            <div class="form-row">
+              <div class="form-group"><label>Service Name</label><input class="form-input" v-model="createForm.serviceName" placeholder="my-service" /></div>
+              <div class="form-group"><label>Service Port</label><input class="form-input" type="number" v-model.number="createForm.servicePort" placeholder="80" /></div>
+            </div>
+            <label class="form-toggle"><input type="checkbox" v-model="createForm.tls" /><span>Enable TLS</span></label>
+          </template>
+
+          <!-- ConfigMap Form -->
+          <template v-if="createKind==='ConfigMap'">
+            <div class="form-row">
+              <div class="form-group"><label>Name</label><input class="form-input" v-model="createForm.name" placeholder="my-config" /></div>
+              <div class="form-group"><label>Namespace</label>
+                <select class="form-select" v-model="createForm.namespace"><option value="">default</option><option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option></select>
+              </div>
+            </div>
+            <div class="form-group"><label>Data (key-value pairs)</label>
+              <div v-for="(kv,idx) in createForm.kvPairs" :key="idx" class="kv-row">
+                <input class="form-input" v-model="kv.key" placeholder="key" />
+                <input class="form-input" v-model="kv.value" placeholder="value" />
+                <button class="kv-remove" @click="createForm.kvPairs.splice(idx,1)">&times;</button>
+              </div>
+              <button class="kv-add" @click="createForm.kvPairs.push({key:'',value:''})">+ Add Entry</button>
+            </div>
+          </template>
+
+          <!-- Secret Form -->
+          <template v-if="createKind==='Secret'">
+            <div class="form-row">
+              <div class="form-group"><label>Name</label><input class="form-input" v-model="createForm.name" placeholder="my-secret" /></div>
+              <div class="form-group"><label>Namespace</label>
+                <select class="form-select" v-model="createForm.namespace"><option value="">default</option><option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option></select>
+              </div>
+            </div>
+            <div class="form-group"><label>Data (key-value pairs)</label>
+              <div v-for="(kv,idx) in createForm.kvPairs" :key="idx" class="kv-row">
+                <input class="form-input" v-model="kv.key" placeholder="key" />
+                <input class="form-input" type="password" v-model="kv.value" placeholder="value" />
+                <button class="kv-remove" @click="createForm.kvPairs.splice(idx,1)">&times;</button>
+              </div>
+              <button class="kv-add" @click="createForm.kvPairs.push({key:'',value:''})">+ Add Entry</button>
+            </div>
+          </template>
+        </template>
+      </div>
+      <div class="modal-footer" v-if="createKind">
+        <button class="btn-secondary" @click="showCreateModal=false">Cancel</button>
+        <button class="btn-primary" @click="submitCreate" :disabled="createSubmitting">{{ createSubmitting ? 'Applying...' : 'Create' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">FC</div>
+      <div class="header-title">Flux<span>CD</span> Dashboard</div>
+    </div>
+    <div class="header-right">
+      <div class="connection-status">
+        <div :class="['status-dot', loading ? 'loading' : error ? 'error' : '']"></div>
+        <span>{{ loading ? 'Fetching...' : error ? 'Disconnected' : 'Connected' }}</span>
+      </div>
+      <div class="last-updated" v-if="data">Updated {{ lastUpdatedAgo }}</div>
+      <div class="refresh-group">
+        <div :class="['countdown-ring', autoRefreshPaused ? 'paused' : '']" @click="toggleAutoRefresh" :title="autoRefreshPaused ? 'Resume auto-refresh' : 'Pause auto-refresh'">
+          <svg width="28" height="28" viewBox="0 0 28 28">
+            <circle class="track" cx="14" cy="14" r="11" />
+            <circle class="progress" cx="14" cy="14" r="11" :stroke-dasharray="69.1" :stroke-dashoffset="69.1 - (69.1 * countdownPercent / 100)" />
+          </svg>
+          <div class="text">{{ countdownSeconds }}s</div>
+        </div>
+        <button :class="['refresh-btn', loading ? 'spinning' : '']" @click="fetchData">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toolbar: Nav + Search + Namespace filter -->
+  <div class="toolbar">
+    <div class="nav-group">
+      <button :class="['nav-btn', tab==='overview'?'active':'']" @click="tab='overview'">Overview</button>
+      <button :class="['nav-btn', tab==='flux'?'active':'']" @click="tab='flux'">FluxCD <span class="nav-count">{{ fluxCount }}</span></button>
+      <button :class="['nav-btn', tab==='workloads'?'active':'']" @click="tab='workloads'">Workloads <span class="nav-count">{{ data?.workloads?.pods?.length||0 }}</span></button>
+      <button :class="['nav-btn', tab==='networking'?'active':'']" @click="tab='networking'">Networking</button>
+      <button :class="['nav-btn', tab==='events'?'active':'']" @click="tab='events'">Events <span class="nav-count" :style="{color: warningEventCount > 0 ? 'var(--accent-yellow)' : ''}">{{ data?.events?.length||0 }}</span></button>
+      <button :class="['nav-btn', tab==='topology'?'active':'']" @click="tab='topology'; loadTopology()">Topology</button>
+      <button :class="['nav-btn', tab==='cluster'?'active':'']" @click="tab='cluster'">Cluster</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="search-wrapper">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input class="search-box" v-model="search" placeholder="Search..." />
+    </div>
+    <select class="ns-select" v-model="selectedNamespace" @change="fetchData">
+      <option value="">All Namespaces</option>
+      <option v-for="ns in namespaces" :key="ns" :value="ns">{{ ns }}</option>
+    </select>
+  </div>
+
+  <!-- Main -->
+  <main class="main">
+    <div v-if="error" class="error-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+      {{ error }}
+    </div>
+
+    <div v-if="loading && !data" class="loading-screen">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Connecting to cluster...</div>
+    </div>
+
+    <!-- Overview Tab -->
+    <template v-if="data && tab==='overview'">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="create-btn" @click="showCreateModal=true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create Resource
+        </button>
+      </div>
+      <div class="stats-bar">
+        <div class="stat-card" style="animation-delay:0.05s"><div class="stat-label">Nodes</div><div class="stat-value cyan">{{ data.cluster?.nodes?.length||0 }}</div></div>
+        <div class="stat-card" style="animation-delay:0.1s"><div class="stat-label">Kustomizations</div><div :class="['stat-value', allKsReady?'green':'red']">{{ data.flux?.kustomizations?.length||0 }}</div></div>
+        <div class="stat-card" style="animation-delay:0.15s"><div class="stat-label">Helm Releases</div><div :class="['stat-value', allHrReady?'green':'red']">{{ data.flux?.helmReleases?.length||0 }}</div></div>
+        <div class="stat-card" style="animation-delay:0.2s"><div class="stat-label">Deployments</div><div class="stat-value blue">{{ data.workloads?.deployments?.length||0 }}</div></div>
+        <div class="stat-card" style="animation-delay:0.25s"><div class="stat-label">Pods</div><div :class="['stat-value', allPodsOk?'green':'red']">{{ runningPods }}/{{ data.workloads?.pods?.length||0 }}</div></div>
+        <div class="stat-card" style="animation-delay:0.3s"><div class="stat-label">Certificates</div><div class="stat-value purple">{{ data.networking?.certificates?.length||0 }}</div></div>
+        <div class="stat-card" style="animation-delay:0.35s"><div class="stat-label">Warnings</div><div :class="['stat-value', warningEventCount>0?'yellow':'green']">{{ warningEventCount }}</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><div class="section-title">FluxCD Sync Status</div></div>
+        <div class="card-grid">
+          <div class="card" v-for="(ks,i) in filtered(data.flux?.kustomizations)" :key="'ks-'+i" :style="{animationDelay:(i*0.05)+'s'}" :class="{expanded:expandedCard==='ks-'+i}" @click="toggleExpand('ks-'+i)">
+            <div class="card-top">
+              <div><div class="card-name" v-html="hl(ks.name)"></div><div class="card-namespace">{{ ks.namespace }}</div></div>
+              <span :class="['badge', ks.ready?'ready':'not-ready']"><span class="badge-dot"></span>{{ ks.ready?'Synced':ks.status }}</span>
+            </div>
+            <div class="meta-row"><span class="meta-label">Revision</span><span class="meta-value">{{ shortRev(ks.revision) }}</span></div>
+            <div class="meta-row"><span class="meta-label">Path</span><span class="meta-value">{{ ks.path||'.' }}</span></div>
+            <div class="meta-row"><span class="meta-label">Interval</span><span class="meta-value">{{ ks.interval }}</span></div>
+            <div v-if="ks.message && !ks.ready" class="message-tooltip">{{ ks.message }}</div>
+            <div v-if="expandedCard==='ks-'+i" class="card-details">
+              <div class="meta-row"><span class="meta-label">Suspended</span><span class="meta-value">{{ ks.suspended?'Yes':'No' }}</span></div>
+              <div class="meta-row"><span class="meta-label">Last Sync</span><span class="meta-value">{{ ks.lastTransition ? new Date(ks.lastTransition).toLocaleString() : 'N/A' }}</span></div>
+              <div v-if="ks.dependsOn?.length" class="meta-row"><span class="meta-label">Depends On</span><span class="meta-value">{{ ks.dependsOn.map(d=>d.name).join(', ') }}</span></div>
+              <div v-if="ks.message" class="message-tooltip" style="max-height:none">{{ ks.message }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" v-if="filtered(data.workloads?.deployments)?.length">
+        <div class="section-header"><div class="section-title">Deployments</div></div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Images</th><th>Age</th></tr></thead>
+            <tbody>
+              <tr v-for="(d,i) in filtered(data.workloads.deployments)" :key="'dep-'+i">
+                <td style="color:var(--text-primary);font-weight:500" v-html="hl(d.name)"></td>
+                <td>{{ d.namespace }}</td>
+                <td><span :class="['badge', depReady(d)?'ready':'not-ready']">{{ d.ready }}</span></td>
+                <td><span v-for="img in d.images" :key="img" style="display:block">{{ shortImg(img) }}</span></td>
+                <td>{{ timeAgo(d.age) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- Flux Tab -->
+    <template v-if="data && tab==='flux'">
+      <div class="section" v-if="filtered(data.flux?.gitRepositories)?.length">
+        <div class="section-header"><div class="section-title">Git Repositories</div></div>
+        <div class="card-grid">
+          <div class="card" v-for="(gr,i) in filtered(data.flux?.gitRepositories)" :key="'gr-'+i" @click="toggleExpand('gr-'+i)" :class="{expanded:expandedCard==='gr-'+i}">
+            <div class="card-top"><div><div class="card-name" v-html="hl(gr.name)"></div><div class="card-namespace">{{ gr.namespace }}</div></div><span :class="['badge', gr.ready?'ready':'not-ready']"><span class="badge-dot"></span>{{ gr.ready?'Ready':'Not Ready' }}</span></div>
+            <div class="meta-row"><span class="meta-label">URL</span><span class="meta-value">{{ gr.url }}</span></div>
+            <div class="meta-row"><span class="meta-label">Branch</span><span class="meta-value">{{ gr.branch }}</span></div>
+            <div class="meta-row"><span class="meta-label">Revision</span><span class="meta-value">{{ shortRev(gr.revision) }}</span></div>
+            <div v-if="expandedCard==='gr-'+i" class="card-details">
+              <div class="meta-row"><span class="meta-label">Interval</span><span class="meta-value">{{ gr.interval }}</span></div>
+              <div class="meta-row"><span class="meta-label">Last Sync</span><span class="meta-value">{{ gr.lastTransition ? new Date(gr.lastTransition).toLocaleString() : 'N/A' }}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" v-if="filtered(data.flux?.helmRepositories)?.length">
+        <div class="section-header"><div class="section-title">Helm Repositories</div></div>
+        <div class="card-grid">
+          <div class="card" v-for="(hr,i) in filtered(data.flux?.helmRepositories)" :key="'hr-'+i">
+            <div class="card-top"><div><div class="card-name" v-html="hl(hr.name)"></div><div class="card-namespace">{{ hr.namespace }}</div></div><span :class="['badge', hr.ready?'ready':'not-ready']"><span class="badge-dot"></span>{{ hr.ready?'Ready':'Not Ready' }}</span></div>
+            <div class="meta-row"><span class="meta-label">URL</span><span class="meta-value">{{ hr.url }}</span></div>
+            <div class="meta-row"><span class="meta-label">Type</span><span class="meta-value">{{ hr.type }}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" v-if="filtered(data.flux?.kustomizations)?.length">
+        <div class="section-header"><div class="section-title">Kustomizations</div></div>
+        <div class="card-grid">
+          <div class="card" v-for="(ks,i) in filtered(data.flux?.kustomizations)" :key="'fks-'+i" @click="toggleExpand('fks-'+i)" :class="{expanded:expandedCard==='fks-'+i}">
+            <div class="card-top"><div><div class="card-name" v-html="hl(ks.name)"></div><div class="card-namespace">{{ ks.namespace }}</div></div><span :class="['badge', ks.ready?'ready':'not-ready']"><span class="badge-dot"></span>{{ ks.ready?'Synced':ks.status }}</span></div>
+            <div class="meta-row"><span class="meta-label">Revision</span><span class="meta-value">{{ shortRev(ks.revision) }}</span></div>
+            <div class="meta-row"><span class="meta-label">Path</span><span class="meta-value">{{ ks.path||'.' }}</span></div>
+            <div class="meta-row"><span class="meta-label">Interval</span><span class="meta-value">{{ ks.interval }}</span></div>
+            <div v-if="expandedCard==='fks-'+i" class="card-details">
+              <div class="meta-row"><span class="meta-label">Suspended</span><span class="meta-value">{{ ks.suspended?'Yes':'No' }}</span></div>
+              <div v-if="ks.dependsOn?.length" class="meta-row"><span class="meta-label">Depends</span><span class="meta-value">{{ ks.dependsOn.map(d=>d.name).join(', ') }}</span></div>
+              <div v-if="ks.message" class="message-tooltip" style="max-height:none">{{ ks.message }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" v-if="filtered(data.flux?.helmReleases)?.length">
+        <div class="section-header"><div class="section-title">Helm Releases</div></div>
+        <div class="card-grid">
+          <div class="card" v-for="(hr,i) in filtered(data.flux?.helmReleases)" :key="'fhr-'+i" @click="toggleExpand('fhr-'+i)" :class="{expanded:expandedCard==='fhr-'+i}">
+            <div class="card-top"><div><div class="card-name" v-html="hl(hr.name)"></div><div class="card-namespace">{{ hr.namespace }}</div></div><span :class="['badge', hr.ready?'ready':'not-ready']"><span class="badge-dot"></span>{{ hr.ready?'Ready':hr.status }}</span></div>
+            <div class="meta-row"><span class="meta-label">Chart</span><span class="meta-value">{{ hr.chart }}</span></div>
+            <div class="meta-row"><span class="meta-label">Version</span><span class="meta-value">{{ hr.version }}</span></div>
+            <div v-if="expandedCard==='fhr-'+i" class="card-details">
+              <div class="meta-row"><span class="meta-label">Revision</span><span class="meta-value">{{ hr.revision }}</span></div>
+              <div class="meta-row"><span class="meta-label">Interval</span><span class="meta-value">{{ hr.interval }}</span></div>
+              <div v-if="hr.message" class="message-tooltip" style="max-height:none">{{ hr.message }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Workloads Tab -->
+    <template v-if="data && tab==='workloads'">
+      <div class="section">
+        <div class="section-header"><div class="section-title">Deployments</div></div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Name</th><th>Namespace</th><th>Ready</th><th>Up-to-date</th><th>Available</th><th>Images</th><th>Age</th></tr></thead>
+            <tbody>
+              <tr v-for="(d,i) in filtered(data.workloads?.deployments)" :key="'wd-'+i">
+                <td style="color:var(--text-primary);font-weight:500" v-html="hl(d.name)"></td><td>{{ d.namespace }}</td>
+                <td><span :class="['badge', depReady(d)?'ready':'not-ready']">{{ d.ready }}</span></td>
+                <td>{{ d.upToDate }}</td><td>{{ d.available }}</td>
+                <td><span v-for="img in d.images" :key="img" style="display:block">{{ shortImg(img) }}</span></td>
+                <td>{{ timeAgo(d.age) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-header"><div class="section-title">Pods</div></div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Name</th><th>Namespace</th><th>Status</th><th>Ready</th><th>Restarts</th><th>Node</th><th>Age</th></tr></thead>
+            <tbody>
+              <tr v-for="(p,i) in filtered(data.workloads?.pods)" :key="'wp-'+i">
+                <td style="color:var(--text-primary);font-weight:500" v-html="hl(p.name)"></td><td>{{ p.namespace }}</td>
+                <td><span :class="['badge', podCls(p.status)]">{{ p.status }}</span></td>
+                <td>{{ p.ready }}</td>
+                <td :style="{color: p.restarts>5?'var(--accent-red)':p.restarts>0?'var(--accent-yellow)':'var(--text-secondary)'}">{{ p.restarts }}</td>
+                <td>{{ p.node }}</td><td>{{ timeAgo(p.age) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- Networking Tab -->
+    <template v-if="data && tab==='networking'">
+      <div class="section" v-if="filtered(data.networking?.ingresses)?.length">
+        <div class="section-header"><div class="section-title">Ingresses</div></div>
+        <div class="card-grid">
+          <div class="card" v-for="(ing,i) in filtered(data.networking?.ingresses)" :key="'ing-'+i">
+            <div class="card-top"><div><div class="card-name" v-html="hl(ing.name)"></div><div class="card-namespace">{{ ing.namespace }}</div></div><span :class="['badge', ing.tls?.length?'ready':'info']">{{ ing.tls?.length?'TLS':'HTTP' }}</span></div>
+            <div class="meta-row"><span class="meta-label">Hosts</span><span class="meta-value">{{ ing.hosts?.join(', ') }}</span></div>
+            <div v-for="p in ing.paths" :key="p.path" class="meta-row"><span class="meta-label">{{ p.path }}</span><span class="meta-value">{{ p.service }}:{{ p.port }}</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="section" v-if="filtered(data.networking?.certificates)?.length">
+        <div class="section-header"><div class="section-title">Certificates</div></div>
+        <div class="card-grid">
+          <div class="card" v-for="(c,i) in filtered(data.networking?.certificates)" :key="'cert-'+i" @click="toggleExpand('cert-'+i)" :class="{expanded:expandedCard==='cert-'+i}">
+            <div class="card-top"><div><div class="card-name" v-html="hl(c.name)"></div><div class="card-namespace">{{ c.namespace }}</div></div><span :class="['badge', c.ready?'ready':'not-ready']"><span class="badge-dot"></span>{{ c.ready?'Valid':'Invalid' }}</span></div>
+            <div class="meta-row"><span class="meta-label">Domains</span><span class="meta-value">{{ c.domains?.join(', ') }}</span></div>
+            <div class="meta-row"><span class="meta-label">Issuer</span><span class="meta-value">{{ c.issuer }}</span></div>
+            <div v-if="expandedCard==='cert-'+i" class="card-details">
+              <div class="meta-row"><span class="meta-label">Expires</span><span class="meta-value">{{ c.notAfter?new Date(c.notAfter).toLocaleDateString():'N/A' }}</span></div>
+              <div class="meta-row"><span class="meta-label">Renewal</span><span class="meta-value">{{ c.renewalTime?new Date(c.renewalTime).toLocaleDateString():'N/A' }}</span></div>
+              <div class="meta-row"><span class="meta-label">Secret</span><span class="meta-value">{{ c.secret }}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section" v-if="filtered(data.networking?.services)?.length">
+        <div class="section-header"><div class="section-title">Services</div></div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Name</th><th>Namespace</th><th>Type</th><th>Cluster IP</th><th>External IP</th><th>Ports</th></tr></thead>
+            <tbody>
+              <tr v-for="(s,i) in filtered(data.networking?.services)" :key="'svc-'+i">
+                <td style="color:var(--text-primary);font-weight:500" v-html="hl(s.name)"></td><td>{{ s.namespace }}</td>
+                <td><span :class="['badge', s.type==='LoadBalancer'?'purple':'info']">{{ s.type }}</span></td>
+                <td>{{ s.clusterIP }}</td><td>{{ s.externalIP }}</td><td>{{ s.ports?.join(', ') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- Events Tab -->
+    <template v-if="data && tab==='events'">
+      <div class="section">
+        <div class="section-header"><div class="section-title">Recent Events ({{ filteredEvents.length }})</div></div>
+        <div class="table-wrapper" v-if="filteredEvents.length">
+          <table>
+            <thead><tr><th>Type</th><th>Reason</th><th>Object</th><th>Namespace</th><th>Message</th><th>Count</th><th>Last Seen</th></tr></thead>
+            <tbody>
+              <tr v-for="(e,i) in filteredEvents" :key="'ev-'+i">
+                <td><span :class="['badge', e.type==='Warning'?'warning':'normal']">{{ e.type }}</span></td>
+                <td style="color:var(--text-primary);font-weight:500">{{ e.reason }}</td>
+                <td v-html="hl(e.object)"></td>
+                <td>{{ e.namespace }}</td>
+                <td class="event-message">{{ e.message }}</td>
+                <td>{{ e.count }}</td>
+                <td>{{ timeAgo(e.lastSeen) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="empty-state">No events found</div>
+      </div>
+    </template>
+
+    <!-- Topology Tab -->
+    <template v-if="tab==='topology'">
+      <div v-if="topoLoading" class="topo-loading"><div class="loading-spinner"></div> Loading resource tree...</div>
+      <div v-else-if="topoData">
+        <div class="topo-controls">
+          <button @click="topoZoom=Math.min(topoZoom+0.1,2)">+</button>
+          <span class="zoom-label">{{ Math.round(topoZoom*100) }}%</span>
+          <button @click="topoZoom=Math.max(topoZoom-0.1,0.3)">-</button>
+          <button @click="topoZoom=1">Reset</button>
+          <button @click="loadTopology">Reload</button>
+        </div>
+        <div class="topo-container">
+          <div class="topo-canvas" :style="{transform:'scale('+topoZoom+')',transformOrigin:'top left',width:topoCanvasW+'px',height:topoCanvasH+'px'}">
+            <!-- Edges (SVG) -->
+            <svg class="topo-edge" :width="topoCanvasW" :height="topoCanvasH" style="position:absolute;top:0;left:0">
+              <path v-for="(e,i) in topoEdges" :key="'te-'+i" :d="'M'+e.x1+','+e.y1+' C'+(e.x1+(e.x2-e.x1)/2)+','+e.y1+' '+(e.x1+(e.x2-e.x1)/2)+','+e.y2+' '+e.x2+','+e.y2" fill="none" stroke="#1e3048" stroke-width="1.5" />
+            </svg>
+            <!-- Nodes -->
+            <div v-for="n in topoNodes" :key="n.uid" class="topo-node" :class="'health-'+n.health" :style="{left:n.x+'px',top:n.y+'px'}" :title="n.kind+'/'+n.name">
+              <div class="topo-node-icon" :class="n.icon">{{ n.icon }}</div>
+              <div class="topo-node-body">
+                <div class="topo-node-name">{{ n.name }}</div>
+                <div class="topo-node-kind">{{ n.kind }}</div>
+                <div class="topo-node-info" v-if="n.info">{{ n.info }}</div>
+                <div class="topo-node-badges">
+                  <span :class="['topo-badge', n.health]">{{ n.health }}</span>
+                  <span class="topo-badge" style="background:var(--bg-input);color:var(--text-muted)" v-if="n.age">{{ timeAgo(n.age) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-state">Click Reload to load the resource tree</div>
+    </template>
+
+    <!-- Cluster Tab -->
+    <template v-if="data && tab==='cluster'">
+      <div class="section">
+        <div class="section-header"><div class="section-title">Nodes</div></div>
+        <div class="card-grid">
+          <div class="node-card" v-for="(n,i) in data.cluster?.nodes" :key="'node-'+i">
+            <div class="node-header"><div class="node-name">{{ n.name }}</div><span :class="['badge', n.ready?'ready':'not-ready']"><span class="badge-dot"></span>{{ n.ready?'Ready':'Not Ready' }}</span></div>
+            <div class="resource-bars">
+              <div class="resource-item">
+                <label><span>CPU</span><span :class="{'overload':n.usage?.cpuPct>90}">{{ n.usage?.cpu || '0m' }} / {{ n.capacity?.cpu }} cores ({{ n.usage?.cpuPct || 0 }}%)</span></label>
+                <div class="bar-track"><div :class="['bar-fill', n.usage?.cpuPct>90?'bar-danger':n.usage?.cpuPct>70?'bar-warn':'']" :style="{width:Math.min(n.usage?.cpuPct||0,100)+'%'}"></div></div>
+              </div>
+              <div class="resource-item">
+                <label><span>Memory</span><span :class="{'overload':n.usage?.memPct>90}">{{ n.usage?.memory || '0Mi' }} / {{ fmtMem(n.capacity?.memory) }} ({{ n.usage?.memPct || 0 }}%)</span></label>
+                <div class="bar-track"><div :class="['bar-fill', n.usage?.memPct>90?'bar-danger':n.usage?.memPct>70?'bar-warn':'']" :style="{width:Math.min(n.usage?.memPct||0,100)+'%'}"></div></div>
+              </div>
+              <div class="resource-item">
+                <label><span>Pods</span><span :class="{'overload':podPct(n)>90}">{{ n.usage?.pods || 0 }} / {{ n.capacity?.pods }} ({{ Math.round(podPct(n)) }}%)</span></label>
+                <div class="bar-track"><div :class="['bar-fill', podPct(n)>90?'bar-danger':podPct(n)>70?'bar-warn':'']" :style="{width:podPct(n)+'%'}"></div></div>
+              </div>
+            </div>
+            <div class="node-meta">
+              <div class="node-meta-item"><span class="meta-label">Roles</span><span class="meta-value">{{ n.roles?.join(', ')||'worker' }}</span></div>
+              <div class="node-meta-item"><span class="meta-label">Version</span><span class="meta-value">{{ n.version }}</span></div>
+              <div class="node-meta-item"><span class="meta-label">OS</span><span class="meta-value">{{ n.os }}</span></div>
+              <div class="node-meta-item"><span class="meta-label">Runtime</span><span class="meta-value">{{ n.containerRuntime }}</span></div>
+              <div class="node-meta-item"><span class="meta-label">Arch</span><span class="meta-value">{{ n.arch }}</span></div>
+              <div class="node-meta-item"><span class="meta-label">Age</span><span class="meta-value">{{ timeAgo(n.age) }}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+createApp({
+  setup() {
+    const API = '';
+    const data = ref(null);
+    const loading = ref(false);
+    const error = ref(null);
+    const tab = ref('overview');
+    const search = ref('');
+    const selectedNamespace = ref('');
+    const namespaces = ref([]);
+    const expandedCard = ref(null);
+    const toasts = ref([]);
+    const autoRefreshPaused = ref(false);
+    const countdownSeconds = ref(15);
+    const countdownPercent = ref(100);
+    const lastUpdatedTime = ref(null);
+    const lastUpdatedAgo = ref('just now');
+    let refreshTimer = null;
+    let countdownTimer = null;
+    let agoTimer = null;
+    let prevPodStatuses = {};
+    let toastId = 0;
+
+    function addToast(message, type = 'info') {
+      const id = ++toastId;
+      toasts.value.push({ id, message, type, leaving: false });
+      setTimeout(() => {
+        const t = toasts.value.find(x => x.id === id);
+        if (t) t.leaving = true;
+        setTimeout(() => { toasts.value = toasts.value.filter(x => x.id !== id); }, 300);
+      }, 4000);
+    }
+
+    function detectChanges(newData) {
+      if (!newData?.workloads?.pods) return;
+      const newStatuses = {};
+      for (const pod of newData.workloads.pods) {
+        const key = `${pod.namespace}/${pod.name}`;
+        newStatuses[key] = pod.status;
+        const prev = prevPodStatuses[key];
+        if (prev && prev !== pod.status) {
+          if (pod.status === 'Running') addToast(`${pod.name} is now Running`, 'success');
+          else if (pod.status === 'Failed' || pod.status === 'CrashLoopBackOff') addToast(`${pod.name}: ${pod.status}`, 'error');
+          else if (pod.status === 'Pending') addToast(`${pod.name} is Pending`, 'warning');
+        }
+      }
+      prevPodStatuses = newStatuses;
+    }
+
+    async function fetchData() {
+      loading.value = true;
+      error.value = null;
+      try {
+        const ns = selectedNamespace.value ? `?namespace=${selectedNamespace.value}` : '';
+        const res = await fetch(`${API}/api/all${ns}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const d = await res.json();
+        detectChanges(d);
+        data.value = d;
+        if (d.namespaces) namespaces.value = d.namespaces;
+        lastUpdatedTime.value = Date.now();
+        lastUpdatedAgo.value = 'just now';
+      } catch (e) {
+        error.value = `Failed to connect: ${e.message}`;
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    function startCountdown() {
+      countdownSeconds.value = 15;
+      countdownPercent.value = 100;
+      if (countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        if (autoRefreshPaused.value) return;
+        countdownSeconds.value--;
+        countdownPercent.value = (countdownSeconds.value / 15) * 100;
+        if (countdownSeconds.value <= 0) {
+          fetchData();
+          countdownSeconds.value = 15;
+          countdownPercent.value = 100;
+        }
+      }, 1000);
+    }
+
+    function toggleAutoRefresh() {
+      autoRefreshPaused.value = !autoRefreshPaused.value;
+      if (!autoRefreshPaused.value) addToast('Auto-refresh resumed', 'info');
+      else addToast('Auto-refresh paused', 'warning');
+    }
+
+    function updateAgo() {
+      if (!lastUpdatedTime.value) return;
+      const diff = Math.floor((Date.now() - lastUpdatedTime.value) / 1000);
+      if (diff < 5) lastUpdatedAgo.value = 'just now';
+      else if (diff < 60) lastUpdatedAgo.value = `${diff}s ago`;
+      else lastUpdatedAgo.value = `${Math.floor(diff / 60)}m ago`;
+    }
+
+    // Computed
+    const fluxCount = computed(() => (data.value?.flux?.kustomizations?.length||0) + (data.value?.flux?.helmReleases?.length||0));
+    const allKsReady = computed(() => data.value?.flux?.kustomizations?.every(k => k.ready) ?? true);
+    const allHrReady = computed(() => data.value?.flux?.helmReleases?.every(h => h.ready) ?? true);
+    const runningPods = computed(() => data.value?.workloads?.pods?.filter(p => p.status === 'Running').length || 0);
+    const allPodsOk = computed(() => data.value?.workloads?.pods?.every(p => p.status === 'Running' || p.status === 'Succeeded') ?? true);
+    const warningEventCount = computed(() => data.value?.events?.filter(e => e.type === 'Warning').length || 0);
+
+    const filteredEvents = computed(() => {
+      let evts = data.value?.events || [];
+      if (search.value) {
+        const s = search.value.toLowerCase();
+        evts = evts.filter(e => e.object?.toLowerCase().includes(s) || e.message?.toLowerCase().includes(s) || e.reason?.toLowerCase().includes(s));
+      }
+      return evts;
+    });
+
+    function filtered(arr) {
+      if (!arr) return [];
+      if (!search.value) return arr;
+      const s = search.value.toLowerCase();
+      return arr.filter(item => item.name?.toLowerCase().includes(s) || item.namespace?.toLowerCase().includes(s));
+    }
+
+    function hl(text) {
+      if (!text || !search.value) return text;
+      const s = search.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return text.replace(new RegExp(`(${s})`, 'gi'), '<span class="highlight">$1</span>');
+    }
+
+    function toggleExpand(id) { expandedCard.value = expandedCard.value === id ? null : id; }
+    function shortRev(r) { if (!r || r === 'N/A') return 'N/A'; if (r.includes('@')) { const p = r.split('@'); return `${p[0]}@${(p[1]||'').substring(0,7)}`; } return r.length > 12 ? r.substring(0,12)+'...' : r; }
+    function shortImg(img) { if (!img) return ''; const p = img.split('/'); return p.length > 2 ? p.slice(-2).join('/') : img; }
+    function depReady(d) { const [r, t] = d.ready.split('/').map(Number); return r === t && t > 0; }
+    function podCls(s) { if (s === 'Running' || s === 'Succeeded') return 'running'; if (s === 'Pending') return 'pending'; return 'failed'; }
+    function timeAgo(ts) { if (!ts) return 'N/A'; const d = Date.now() - new Date(ts).getTime(); const m = Math.floor(d/60000); if (m < 60) return `${m}m`; const h = Math.floor(m/60); if (h < 24) return `${h}h`; return `${Math.floor(h/24)}d`; }
+    function fmtMem(mem) { if (!mem) return '0'; const ki = parseInt(mem.replace('Ki','')); if (isNaN(ki)) return mem; return (ki/1024/1024).toFixed(1)+' Gi'; }
+    function podPct(node) { if (!node.capacity?.pods) return 0; const used = node.usage?.pods || 0; return Math.min(100, (used / parseInt(node.capacity.pods)) * 100); }
+
+    // --- Create Resource ---
+    const showCreateModal = ref(false);
+    const createKind = ref(null);
+    const createSubmitting = ref(false);
+    const createForm = ref(defaultForm());
+
+    function defaultForm() {
+      return { name: '', namespace: '', image: '', replicas: 1, containerPort: 80, serviceName: '', serviceType: 'ClusterIP', port: 80, targetPort: 8080, selector: '', host: '', path: '/', servicePort: 80, tls: false, kvPairs: [{ key: '', value: '' }] };
+    }
+
+    function selectKind(kind) {
+      createKind.value = kind;
+      createForm.value = defaultForm();
+    }
+
+    function buildManifest() {
+      const f = createForm.value;
+      const ns = f.namespace || 'default';
+      const labels = { app: f.name };
+      switch (createKind.value) {
+        case 'Namespace':
+          return { apiVersion: 'v1', kind: 'Namespace', metadata: { name: f.name } };
+        case 'Deployment':
+          return { apiVersion: 'apps/v1', kind: 'Deployment', metadata: { name: f.name, namespace: ns }, spec: { replicas: f.replicas, selector: { matchLabels: labels }, template: { metadata: { labels }, spec: { containers: [{ name: f.name, image: f.image, ports: f.containerPort ? [{ containerPort: f.containerPort }] : [] }] } } } };
+        case 'StatefulSet':
+          return { apiVersion: 'apps/v1', kind: 'StatefulSet', metadata: { name: f.name, namespace: ns }, spec: { serviceName: f.serviceName || f.name, replicas: f.replicas, selector: { matchLabels: labels }, template: { metadata: { labels }, spec: { containers: [{ name: f.name, image: f.image, ports: f.containerPort ? [{ containerPort: f.containerPort }] : [] }] } } } };
+        case 'Service': {
+          const spec = { type: f.serviceType, selector: { app: f.selector || f.name }, ports: [{ port: f.port, targetPort: f.targetPort, protocol: 'TCP' }] };
+          return { apiVersion: 'v1', kind: 'Service', metadata: { name: f.name, namespace: ns }, spec };
+        }
+        case 'Ingress': {
+          const rule = { host: f.host, http: { paths: [{ path: f.path || '/', pathType: 'Prefix', backend: { service: { name: f.serviceName, port: { number: f.servicePort } } } }] } };
+          const spec = { ingressClassName: 'nginx', rules: [rule] };
+          if (f.tls) spec.tls = [{ hosts: [f.host], secretName: `${f.name}-tls` }];
+          return { apiVersion: 'networking.k8s.io/v1', kind: 'Ingress', metadata: { name: f.name, namespace: ns }, spec };
+        }
+        case 'ConfigMap': {
+          const d = {};
+          f.kvPairs.filter(kv => kv.key).forEach(kv => { d[kv.key] = kv.value; });
+          return { apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: f.name, namespace: ns }, data: d };
+        }
+        case 'Secret': {
+          const d = {};
+          f.kvPairs.filter(kv => kv.key).forEach(kv => { d[kv.key] = btoa(kv.value); });
+          return { apiVersion: 'v1', kind: 'Secret', metadata: { name: f.name, namespace: ns }, type: 'Opaque', data: d };
+        }
+        default: return null;
+      }
+    }
+
+    async function submitCreate() {
+      if (!createForm.value.name) { addToast('Name is required', 'error'); return; }
+      const manifest = buildManifest();
+      if (!manifest) return;
+      createSubmitting.value = true;
+      try {
+        const res = await fetch(`${API}/api/apply`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resource: manifest }) });
+        const result = await res.json();
+        if (result.success) {
+          addToast(`${createKind.value} "${createForm.value.name}" created`, 'success');
+          showCreateModal.value = false;
+          createKind.value = null;
+          createForm.value = defaultForm();
+          fetchData();
+        } else {
+          addToast(result.message || 'Failed to create resource', 'error');
+        }
+      } catch (e) {
+        addToast(`Error: ${e.message}`, 'error');
+      } finally {
+        createSubmitting.value = false;
+      }
+    }
+
+    // --- Topology ---
+    const topoData = ref(null);
+    const topoLoading = ref(false);
+    const topoNodes = ref([]);
+    const topoEdges = ref([]);
+    const topoZoom = ref(1);
+    const topoCanvasW = ref(1400);
+    const topoCanvasH = ref(800);
+
+    async function loadTopology() {
+      topoLoading.value = true;
+      try {
+        const ns = selectedNamespace.value ? `?namespace=${selectedNamespace.value}` : '';
+        const res = await fetch(`${API}/api/topology${ns}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        topoData.value = await res.json();
+        layoutTopology(topoData.value);
+      } catch (e) {
+        addToast(`Topology error: ${e.message}`, 'error');
+      } finally {
+        topoLoading.value = false;
+      }
+    }
+
+    function layoutTopology(roots) {
+      const NODE_W = 220;
+      const NODE_H = 80;
+      const H_GAP = 80;
+      const V_GAP = 16;
+      const PADDING = 40;
+
+      const nodes = [];
+      const edges = [];
+
+      // Flatten tree with depth and assign positions
+      function flatten(node, depth) {
+        return { ...node, depth, flatChildren: (node.children || []).flatMap(c => flatten(c, depth + 1)) };
+      }
+
+      // Calculate positions using a simple tree layout
+      let maxDepth = 0;
+      const depthBuckets = {};
+
+      function collectByDepth(node, depth) {
+        maxDepth = Math.max(maxDepth, depth);
+        if (!depthBuckets[depth]) depthBuckets[depth] = [];
+        const entry = { ...node, depth, layoutChildren: [] };
+        depthBuckets[depth].push(entry);
+        (node.children || []).forEach(child => {
+          const childEntry = collectByDepth(child, depth + 1);
+          entry.layoutChildren.push(childEntry);
+        });
+        return entry;
+      }
+
+      const layoutRoots = roots.map(r => collectByDepth(r, 0));
+
+      // Assign Y positions bottom-up (leaves first)
+      let globalY = PADDING;
+
+      function assignY(entry) {
+        if (entry.layoutChildren.length === 0) {
+          entry.y = globalY;
+          globalY += NODE_H + V_GAP;
+          return;
+        }
+        entry.layoutChildren.forEach(c => assignY(c));
+        const firstY = entry.layoutChildren[0].y;
+        const lastY = entry.layoutChildren[entry.layoutChildren.length - 1].y;
+        entry.y = (firstY + lastY) / 2;
+      }
+
+      layoutRoots.forEach(root => assignY(root));
+
+      // Assign X positions by depth
+      function assignX(entry) {
+        entry.x = PADDING + entry.depth * (NODE_W + H_GAP);
+        entry.layoutChildren.forEach(c => assignX(c));
+      }
+      layoutRoots.forEach(root => assignX(root));
+
+      // Collect all positioned nodes and edges
+      function collect(entry) {
+        nodes.push({
+          uid: entry.uid,
+          name: entry.name,
+          kind: entry.kind,
+          icon: entry.icon,
+          health: entry.health,
+          info: entry.info,
+          age: entry.age,
+          x: entry.x,
+          y: entry.y,
+        });
+        entry.layoutChildren.forEach(child => {
+          edges.push({
+            x1: entry.x + NODE_W,
+            y1: entry.y + NODE_H / 2,
+            x2: child.x,
+            y2: child.y + NODE_H / 2,
+          });
+          collect(child);
+        });
+      }
+      layoutRoots.forEach(root => collect(root));
+
+      // Calculate canvas size
+      const maxX = Math.max(...nodes.map(n => n.x + NODE_W), 800);
+      const maxY = Math.max(...nodes.map(n => n.y + NODE_H), 400);
+      topoCanvasW.value = maxX + PADDING * 2;
+      topoCanvasH.value = maxY + PADDING * 2;
+
+      topoNodes.value = nodes;
+      topoEdges.value = edges;
+    }
+
+    onMounted(() => {
+      fetchData();
+      startCountdown();
+      agoTimer = setInterval(updateAgo, 5000);
+    });
+
+    onUnmounted(() => {
+      if (countdownTimer) clearInterval(countdownTimer);
+      if (agoTimer) clearInterval(agoTimer);
+    });
+
+    return {
+      data, loading, error, tab, search, selectedNamespace, namespaces,
+      expandedCard, toasts, autoRefreshPaused, countdownSeconds, countdownPercent,
+      lastUpdatedAgo, fetchData, toggleAutoRefresh,
+      fluxCount, allKsReady, allHrReady, runningPods, allPodsOk, warningEventCount,
+      filteredEvents, filtered, hl, toggleExpand,
+      shortRev, shortImg, depReady, podCls, timeAgo, fmtMem, podPct,
+      topoData, topoLoading, topoNodes, topoEdges, topoZoom, topoCanvasW, topoCanvasH, loadTopology,
+      showCreateModal, createKind, createForm, createSubmitting, selectKind, submitCreate,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
